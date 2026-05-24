@@ -19,7 +19,7 @@ endif()
 include_directories(include include/common include/nlohmann)
 link_directories(src)
 
-set (
+set(
   DEPENDENCY_LIST
   unitree_go
   unitree_hg
@@ -38,6 +38,28 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
+
+# ament_target_dependencies was removed in ROS 2 Lyrical. Provide a shim that
+# forwards to target_link_libraries using modern aggregate/${pkg}_TARGETS
+# targets, so this CMakeLists works on Humble through Lyrical.
+if(NOT COMMAND ament_target_dependencies)
+  macro(ament_target_dependencies _target)
+    set(_scope PRIVATE)
+    foreach(_dep ${ARGN})
+      if(_dep STREQUAL "PUBLIC" OR _dep STREQUAL "PRIVATE" OR _dep STREQUAL "INTERFACE")
+        set(_scope ${_dep})
+      elseif(TARGET ${_dep}::${_dep})
+        target_link_libraries(${_target} ${_scope} ${_dep}::${_dep})
+      elseif(DEFINED ${_dep}_TARGETS)
+        target_link_libraries(${_target} ${_scope} ${${_dep}_TARGETS})
+      elseif(TARGET ${_dep})
+        target_link_libraries(${_target} ${_scope} ${_dep})
+      else()
+        message(WARNING "ament_target_dependencies shim: no target for '${_dep}'")
+      endif()
+    endforeach()
+  endmacro()
+endif()
 
 add_executable(low_level_ctrl src/low_level_ctrl.cpp src/common/motor_crc.cpp)
 add_executable(low_level_ctrl_hg src/h1-2/lowlevel/low_level_ctrl_hg.cpp src/common/motor_crc_hg.cpp)
